@@ -27,6 +27,7 @@ class App(ttk.Window):
 
         self.title("Mitch-yt-dlp")
         self.geometry("640x366")
+        self.eval("tk::PlaceWindow . center")
         self.minsize(520, 362)
 
         style = ttk.Style()
