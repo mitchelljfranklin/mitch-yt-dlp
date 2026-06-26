@@ -83,11 +83,16 @@ Mitch-yt-dlp imports [yt-dlp](https://github.com/yt-dlp/yt-dlp) as a Python libr
 - **Windows 10/11** (64-bit)
 - **For source installs**: Python 3.11+
 
-No other dependencies — yt-dlp and FFmpeg are bundled into the EXE.
+  No other dependencies — yt-dlp and FFmpeg are bundled into the EXE.
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, requesting features, and submitting PRs.
+
+## Privacy & Security
+
+- [PRIVACY.md](PRIVACY.md) — what data the app does (and does not) collect
+- [SECURITY.md](SECURITY.md) — how to report vulnerabilities
 
 ## License
 
