@@ -84,6 +84,8 @@ class Downloader:
                 (downloaded_bytes / total_bytes * 100) if total_bytes else 0
             )
 
+            info = progress_data.get("info_dict") or {}
+
             self.progress_queue.put(
                 {
                     "status": self.STATUS_DOWNLOADING,
@@ -91,6 +93,8 @@ class Downloader:
                     "speed": progress_data.get("speed"),
                     "eta": progress_data.get("eta"),
                     "filename": os.path.basename(progress_data.get("filename", "")),
+                    "playlist_index": info.get("playlist_index"),
+                    "playlist_count": info.get("playlist_count"),
                 }
             )
         elif status == "finished":
@@ -117,17 +121,18 @@ class Downloader:
                     "progress_hooks": [self._on_progress],
                     "quiet": True,
                     "no_warnings": True,
-                    "ignoreerrors": False,
+                    "ignoreerrors": True,
                     "noplaylist": False,
                     "extract_flat": False,
                 }
 
-                # Point yt-dlp to the bundled FFmpeg binary if available
-                ffmpeg_executable = resolve_bundled_path(
-                    os.path.join("bin", "ffmpeg.exe")
-                )
-                if os.path.exists(ffmpeg_executable):
-                    options["ffmpeg_location"] = ffmpeg_executable
+                # Point yt-dlp to the bundled FFmpeg directory if both
+                # ffmpeg.exe and ffprobe.exe are available
+                ffmpeg_dir = resolve_bundled_path("bin")
+                ffmpeg_exe = os.path.join(ffmpeg_dir, "ffmpeg.exe")
+                ffprobe_exe = os.path.join(ffmpeg_dir, "ffprobe.exe")
+                if os.path.exists(ffmpeg_exe) and os.path.exists(ffprobe_exe):
+                    options["ffmpeg_location"] = ffmpeg_dir
 
                 if convert_to_mp3:
                     options["postprocessors"] = [

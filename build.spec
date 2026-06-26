@@ -33,6 +33,12 @@ if os.path.exists(path_to_ffprobe):
     bundled_binaries.append((path_to_ffprobe, "bin"))
 
 # ---------------------------------------------------------------------------
+# Application icon (bundled for window icon at runtime)
+# ---------------------------------------------------------------------------
+if os.path.exists("icon.ico"):
+    bundled_data_files.append(("icon.ico", "."))
+
+# ---------------------------------------------------------------------------
 # yt-dlp hidden imports (dynamic modules loaded by name at runtime)
 # ---------------------------------------------------------------------------
 
@@ -90,5 +96,5 @@ executable = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon="icon.ico",
 )

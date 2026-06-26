@@ -39,6 +39,7 @@ mitch-yt-dlp/
 │   ├── app.py            # Main window (UI layout, button handlers)
 │   └── downloader.py     # yt-dlp wrapper (threaded downloads, progress)
 ├── bin/                  # FFmpeg binaries (populated by setup_ffmpeg.py)
+├── icon.ico              # Application icon
 ├── setup_ffmpeg.py       # Downloads FFmpeg Windows builds
 ├── build.spec            # PyInstaller packaging config
 └── requirements.txt

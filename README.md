@@ -16,10 +16,11 @@
 ## Features
 
 - **Simple, clean interface** — paste a URL, pick a folder, hit Start
-- **Playlist support** — download entire playlists with one click
+- **Playlist support** — download entire playlists with one click, with live video counter
 - **MP3 conversion** — toggle to extract audio as MP3 (FFmpeg bundled)
 - **Real-time progress** — speed, ETA, and percentage while downloading
-- **Stop & Cancel** — full control over in-progress downloads
+- **Stop & Exit** — cancel downloads with Stop, close the app with Exit
+- **Keyboard shortcuts** — Enter to start, Escape to stop
 - **Standalone `.exe`** — no Python installation needed, everything bundled
 
 ## Quick Start
@@ -49,7 +50,7 @@ pip install -r requirements.txt
 python setup_ffmpeg.py
 
 # Build standalone EXE
-pyinstaller build.spec
+pyinstaller build.spec or python -m PyInstaller build.spec
 # Output: dist\Mitch-yt-dlp.exe
 ```
 
@@ -66,15 +67,24 @@ Mitch-yt-dlp imports [yt-dlp](https://github.com/yt-dlp/yt-dlp) as a Python libr
 
 ```
 ┌──────────────────────────────────────┐
-│              Mitch-yt-dlp            │
+│       Mitch YT-DLP Downloader        │
 ├──────────────────────────────────────┤
-│  ┌── Download ────────────────────┐  │
-│  │  [ Choose Output Folder  ][🔍] │  │
-│  │  [ Playlist or URL           ] │  │
-│  │  Convert to MP3         [⚪——] │  │
-│  └────────────────────────────────┘  │
-│  [⏹ Stop] [✕ Cancel]      [▶ Start] │
-│  ████████████░░░░░░░░  80%          │
+│  Output Folder                       │
+│  ┌────────────────────────┐ [Browse] │
+│  │ e.g. C:\Users\...\Videos│         │
+│  └────────────────────────┘          │
+│  Video URL                           │
+│  ┌──────────────────────────────┐    │
+│  │ URL or Playlist              │    │
+│  └──────────────────────────────┘    │
+│                   Convert to MP3     │
+│              Extracts audio with     │
+│                    FFmpeg            │
+│  ───────────────────────────────    │
+│  [Stop]              [Exit] [Start] │
+│  Video 3 / 10                       │
+│  ████████████████░░░░░░  45.2%      │
+│  ⬇ Downloading: 1.2 MB/s - ETA 0:32│
 └──────────────────────────────────────┘
 ```
 
