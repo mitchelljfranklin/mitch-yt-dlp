@@ -2,34 +2,34 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, dotnet]
   pull_request:
     branches: [main]
 
 jobs:
-  lint:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: pip install ruff
-      - run: ruff check src/
-      - run: ruff format --check src/
-
   build:
-    needs: lint
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
         with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: python setup_ffmpeg.py
-      - run: pyinstaller build.spec
-      - uses: actions/upload-artifact@v7
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore MitchYtDlp.sln
+
+      - name: Build
+        run: dotnet build MitchYtDlp.sln --no-restore -c Release
+
+      - name: Download tools
+        shell: pwsh
+        run: .\build.ps1 -SkipPublish
+
+      - name: Publish
+        run: dotnet publish src/MitchYtDlp -c Release -o dist --self-contained -r win-x64 -p:PublishSingleFile=true
+
+      - uses: actions/upload-artifact@v4
         with:
-          name: Mitch-yt-dlp
-          path: dist/Mitch-yt-dlp.exe
+          name: MitchYtDlp
+          path: dist/MitchYtDlp.exe

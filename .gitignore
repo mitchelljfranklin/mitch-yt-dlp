@@ -12,3 +12,6 @@ venv/
 bin/ffmpeg.exe
 bin/ffprobe.exe
 bin/*.zip
+bin/yt-dlp.exe
+src/**/bin/
+src/**/obj/
