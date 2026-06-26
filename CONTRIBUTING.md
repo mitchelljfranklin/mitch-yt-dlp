@@ -46,9 +46,11 @@ mitch-yt-dlp/
 
 ## Code Style
 
-- Follow existing patterns in the codebase
-- Use type hints where practical
+- **Human-readable names** — no single-letter variables (use `error` not `e`, `percentage` not `pct`, `options` not `opts`)
+- Every function and class must have a **docstring** describing what it does
 - Keep UI logic in `app.py`, download logic in `downloader.py`
+- **Threading**: all yt-dlp work happens on a background thread; UI updates happen on the main thread via `after()` polling
+- Use module-level constants for colors, intervals, and status values — no magic numbers
 - Test on Windows before submitting a PR
 
 ## Pull Requests

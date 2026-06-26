@@ -1,53 +1,81 @@
 # -*- mode: python ; coding: utf-8 -*-
+"""
+PyInstaller spec file for Mitch-yt-dlp.
+
+Builds a single-window (no console) .exe that bundles:
+- The customtkinter GUI
+- yt-dlp and all its extractors / downloaders / post-processors
+- ffmpeg.exe + ffprobe.exe (if present in bin/)
+
+Usage:
+    pyinstaller build.spec
+
+Output:
+    dist/Mitch-yt-dlp.exe
+"""
+
 import os
-import sys
 from PyInstaller.utils.hooks import collect_submodules
 
-block_cipher = None
+# ---------------------------------------------------------------------------
+# Collect FFmpeg binaries for bundling (optional, for MP3 conversion)
+# ---------------------------------------------------------------------------
 
-binaries = []
-datas = []
+bundled_binaries = []
+bundled_data_files = []
 
-ffmpeg_exe = os.path.join("bin", "ffmpeg.exe")
-ffprobe_exe = os.path.join("bin", "ffprobe.exe")
+path_to_ffmpeg = os.path.join("bin", "ffmpeg.exe")
+path_to_ffprobe = os.path.join("bin", "ffprobe.exe")
 
-if os.path.exists(ffmpeg_exe):
-    binaries.append((ffmpeg_exe, "bin"))
-if os.path.exists(ffprobe_exe):
-    binaries.append((ffprobe_exe, "bin"))
+if os.path.exists(path_to_ffmpeg):
+    bundled_binaries.append((path_to_ffmpeg, "bin"))
+if os.path.exists(path_to_ffprobe):
+    bundled_binaries.append((path_to_ffprobe, "bin"))
 
-hiddenimports = [
+# ---------------------------------------------------------------------------
+# yt-dlp hidden imports (dynamic modules loaded by name at runtime)
+# ---------------------------------------------------------------------------
+
+hidden_imports = [
     "yt_dlp",
     "yt_dlp.extractor",
     "yt_dlp.downloader",
     "yt_dlp.postprocessor",
 ]
-hiddenimports += collect_submodules("yt_dlp")
+hidden_imports += collect_submodules("yt_dlp")
 
-a = Analysis(
+# ---------------------------------------------------------------------------
+# Analysis – resolve all imports and dependencies
+# ---------------------------------------------------------------------------
+
+analysis = Analysis(
     ["src/main.py"],
     pathex=["src"],
-    binaries=binaries,
-    datas=datas,
-    hiddenimports=hiddenimports,
+    binaries=bundled_binaries,
+    datas=bundled_data_files,
+    hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
+    cipher=None,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+# ---------------------------------------------------------------------------
+# Package into a single executable
+# ---------------------------------------------------------------------------
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
+python_archive = PYZ(analysis.pure, analysis.zipped_data, cipher=None)
+
+executable = EXE(
+    python_archive,
+    analysis.scripts,
+    analysis.binaries,
+    analysis.zipfiles,
+    analysis.datas,
     [],
     name="Mitch-yt-dlp",
     debug=False,
@@ -56,7 +84,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=False,  # GUI app, no console window
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
