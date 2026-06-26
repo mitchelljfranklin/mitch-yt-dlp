@@ -25,8 +25,8 @@ hiddenimports = [
 hiddenimports += collect_submodules("yt_dlp")
 
 a = Analysis(
-    ["main.py"],
-    pathex=[],
+    ["src/main.py"],
+    pathex=["src"],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
