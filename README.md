@@ -5,10 +5,17 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Windows-0085FC?style=flat-square&logo=windows" alt="Platform" />
-  <img src="https://img.shields.io/badge/python-3.11+-blue?style=flat-square&logo=python" alt="Python" />
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
-  <img src="https://img.shields.io/badge/ui-customtkinter-008cff?style=flat-square" alt="UI" />
+    <a href="https://github.com/mitchelljfranklin/mitch-yt-dlp/releases">
+      <img src="https://img.shields.io/github/v/release/mitchelljfranklin/mitch-yt-dlp?color=blue&style=for-the-badge" alt="Version">
+    </a>
+    <a href="https://github.com/mitchelljfranklin/mitch-yt-dlp/blob/main/LICENSE">
+      <img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="License">
+    </a>
+    <a href="https://github.com/mitchelljfranklin/mitch-yt-dlp">
+      <img src="https://img.shields.io/github/stars/mitchelljfranklin/mitch-yt-dlp?color=gold&style=for-the-badge" alt="GitHub stars">
+    </a>
+    <br />
+    <a href="https://github.com/mitchelljfranklin/mitch-yt-dlp/releases">📦 What's new</a>
 </p>
 
 ---
@@ -50,7 +57,7 @@ pip install -r requirements.txt
 python setup_ffmpeg.py
 
 # Build standalone EXE
-pyinstaller build.spec or python -m PyInstaller build.spec
+pyinstaller build.spec
 # Output: dist\Mitch-yt-dlp.exe
 ```
 
@@ -60,7 +67,7 @@ Mitch-yt-dlp imports [yt-dlp](https://github.com/yt-dlp/yt-dlp) as a Python libr
 
 | Component | Technology |
 |---|---|
-| UI Framework | [customtkinter](https://github.com/TomSchimansky/CustomTkinter) |
+| UI Framework | [ttkbootstrap](https://github.com/israel-dryer/ttkbootstrap) |
 | Download Engine | [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Python API) |
 | Audio Encoding | [FFmpeg](https://ffmpeg.org/) (bundled in EXE) |
 | Packaging | [PyInstaller](https://pyinstaller.org/) |
@@ -111,5 +118,5 @@ MIT — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  Built with ❤️ using <a href="https://github.com/TomSchimansky/CustomTkinter">customtkinter</a> and <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a>
+  Built with ❤️ using <a href="https://github.com/israel-dryer/ttkbootstrap">ttkbootstrap</a> and <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a>
 </p>

@@ -3,7 +3,7 @@
 PyInstaller spec file for Mitch-yt-dlp.
 
 Builds a single-window (no console) .exe that bundles:
-- The customtkinter GUI
+- The ttkbootstrap GUI
 - yt-dlp and all its extractors / downloaders / post-processors
 - ffmpeg.exe + ffprobe.exe (if present in bin/)
 
