@@ -9,23 +9,39 @@ responsive while yt-dlp runs in the background.
 import os
 import queue
 import sys
+import tkinter as tk
 from tkinter import filedialog, messagebox
 
 import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
 
-from downloader import Downloader
+from downloader import (
+    STATUS_CANCELLED,
+    STATUS_COMPLETED,
+    STATUS_DOWNLOADING,
+    STATUS_ERROR,
+    STATUS_PROCESSING,
+    YT_DLP_VERSION,
+    Downloader,
+    is_ffmpeg_available,
+)
+from settings import load_settings, save_settings
+from version import APP_VERSION
+
+PROGRESS_POLL_INTERVAL_MS = 120
+VALIDATION_MESSAGE_DURATION_MS = 4000
+MAX_ERRORS_IN_DIALOG = 10
 
 
 class App(ttk.Window):
     """The main Mitch-yt-dlp window."""
 
-    _PROGRESS_POLL_INTERVAL_MS = 120
-
     def __init__(self):
         super().__init__(themename="superhero")
 
-        self.title("Mitch-yt-dlp")
+        self.settings = load_settings()
+        self.convert_to_mp3 = tk.BooleanVar(value=self.settings["convert_to_mp3"])
+
+        self.title(f"Mitch-yt-dlp {APP_VERSION}")
         self.geometry("640x366")
         self.eval("tk::PlaceWindow . center")
         self.minsize(520, 362)
@@ -45,8 +61,11 @@ class App(ttk.Window):
 
         self.downloader = Downloader()
         self._poll_callback_id = None
+        self._polling_active = False
+        self._validation_hide_callback_id = None
 
         self._build_user_interface()
+        self.output_folder_entry.insert(0, self.settings["output_directory"])
 
     def _build_user_interface(self):
         self.grid_columnconfigure(0, weight=1)
@@ -112,6 +131,15 @@ class App(ttk.Window):
         )
         header.grid(row=0, column=0, sticky="w", pady=(0, 6))
 
+        # Engine version, so stale bundled extractors are easy to spot
+        engine_label = ttk.Label(
+            form_frame,
+            text=f"yt-dlp {YT_DLP_VERSION}",
+            font=("", 9),
+            bootstyle="secondary",
+        )
+        engine_label.grid(row=0, column=1, sticky="e", pady=(0, 6))
+
         # Output folder label
         folder_label = ttk.Label(
             form_frame,
@@ -136,7 +164,7 @@ class App(ttk.Window):
 
     def _build_output_folder_row(self, parent, row):
         folder_row = ttk.Frame(parent)
-        folder_row.grid(row=row, column=0, sticky="ew", pady=(0, 4))
+        folder_row.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(0, 4))
         folder_row.grid_columnconfigure(0, weight=1)
         folder_row.grid_columnconfigure(1, weight=0)
 
@@ -155,11 +183,11 @@ class App(ttk.Window):
 
     def _build_url_input(self, parent, row):
         self.url_entry = ttk.Entry(parent)
-        self.url_entry.grid(row=row, column=0, sticky="ew", pady=(0, 4))
+        self.url_entry.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(0, 4))
 
     def _build_mp3_toggle(self, parent, row):
         mp3_row = ttk.Frame(parent)
-        mp3_row.grid(row=row, column=0, sticky="ew", pady=(6, 0))
+        mp3_row.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(6, 0))
         mp3_row.grid_columnconfigure(0, weight=1)
 
         toggle_container = ttk.Frame(mp3_row)
@@ -170,6 +198,7 @@ class App(ttk.Window):
             toggle_container,
             text="Convert to MP3",
             bootstyle="primary-round-toggle",
+            variable=self.convert_to_mp3,
         )
         self.mp3_switch.grid(row=0, column=0, sticky="e")
 
@@ -185,9 +214,10 @@ class App(ttk.Window):
         buttons_frame = ttk.Frame(parent)
         buttons_frame.grid(row=3, column=0, sticky="ew", pady=(0, 6))
         buttons_frame.grid_columnconfigure(0, weight=0)
-        buttons_frame.grid_columnconfigure(1, weight=1)
-        buttons_frame.grid_columnconfigure(2, weight=0)
+        buttons_frame.grid_columnconfigure(1, weight=0)
+        buttons_frame.grid_columnconfigure(2, weight=1)
         buttons_frame.grid_columnconfigure(3, weight=0)
+        buttons_frame.grid_columnconfigure(4, weight=0)
 
         self.stop_button = ttk.Button(
             buttons_frame,
@@ -197,13 +227,21 @@ class App(ttk.Window):
         )
         self.stop_button.grid(row=0, column=0, padx=(0, 6))
 
+        self.open_folder_button = ttk.Button(
+            buttons_frame,
+            text="Open Folder",
+            bootstyle="outline-secondary",
+            command=self._on_open_folder,
+        )
+        self.open_folder_button.grid(row=0, column=1)
+
         self.exit_button = ttk.Button(
             buttons_frame,
             text="Exit",
             bootstyle="secondary",
             command=self.destroy,
         )
-        self.exit_button.grid(row=0, column=2, padx=(0, 6))
+        self.exit_button.grid(row=0, column=3, padx=(0, 6))
 
         self.start_button = ttk.Button(
             buttons_frame,
@@ -211,7 +249,7 @@ class App(ttk.Window):
             bootstyle="primary",
             command=self._on_start,
         )
-        self.start_button.grid(row=0, column=3, sticky="e")
+        self.start_button.grid(row=0, column=4, sticky="e")
 
     def _build_progress_area(self, parent):
         progress_container = ttk.Frame(parent)
@@ -241,7 +279,18 @@ class App(ttk.Window):
             self.output_folder_entry.delete(0, "end")
             self.output_folder_entry.insert(0, selected_folder)
 
+    def _on_open_folder(self):
+        """Open the chosen output folder in Explorer."""
+        output_directory = self.output_folder_entry.get().strip()
+        if not output_directory or not os.path.isdir(output_directory):
+            self._show_validation_error("Choose an existing output folder first.")
+            return
+        os.startfile(output_directory)
+
     def _on_start(self):
+        # A previous poll loop can outlive Stop; never stack a second one.
+        self._cancel_polling()
+
         video_url = self.url_entry.get().strip()
         output_directory = self.output_folder_entry.get().strip()
 
@@ -254,33 +303,50 @@ class App(ttk.Window):
             self.output_folder_entry.focus_set()
             return
 
-        should_convert_to_mp3 = self.mp3_switch.instate(["selected"])
+        should_convert_to_mp3 = bool(self.convert_to_mp3.get())
+        if should_convert_to_mp3 and not is_ffmpeg_available():
+            self._show_validation_error(
+                "FFmpeg not found. Run setup_ffmpeg.py or install FFmpeg."
+            )
+            return
 
+        self._save_settings()
         self._set_buttons_for_state(is_idle=False)
         self.progress_bar["value"] = 0
         self.playlist_label.configure(text="")
-        self.progress_label.configure(text="Starting download...")
+        self.progress_label.configure(
+            text="Starting download...", bootstyle="secondary"
+        )
         self._hide_validation()
 
-        self.downloader.download(video_url, output_directory,
-                                 should_convert_to_mp3)
+        self.downloader.download(video_url, output_directory, should_convert_to_mp3)
+        self._polling_active = True
         self._poll_progress_queue()
 
     def _on_stop(self):
         self.downloader.cancel()
         self._set_buttons_for_state(is_idle=True)
-        self.progress_label.configure(text="Stopped.")
+        self.progress_label.configure(text="Stopped.", bootstyle="secondary")
 
     def _on_escape(self):
         if self._poll_callback_id is not None:
             self._on_stop()
 
     def _show_validation_error(self, message):
+        self._cancel_validation_hide()
         self.validation_label.configure(text=message)
-        self.after(4000, self._hide_validation)
+        self._validation_hide_callback_id = self.after(
+            VALIDATION_MESSAGE_DURATION_MS, self._hide_validation
+        )
 
     def _hide_validation(self):
+        self._cancel_validation_hide()
         self.validation_label.configure(text="")
+
+    def _cancel_validation_hide(self):
+        if self._validation_hide_callback_id is not None:
+            self.after_cancel(self._validation_hide_callback_id)
+            self._validation_hide_callback_id = None
 
     def _poll_progress_queue(self):
         try:
@@ -290,14 +356,15 @@ class App(ttk.Window):
         except queue.Empty:
             pass
 
-        self._poll_callback_id = self.after(
-            self._PROGRESS_POLL_INTERVAL_MS, self._poll_progress_queue
-        )
+        if self._polling_active:
+            self._poll_callback_id = self.after(
+                PROGRESS_POLL_INTERVAL_MS, self._poll_progress_queue
+            )
 
     def _handle_progress_update(self, data):
         current_status = data.get("status")
 
-        if current_status == Downloader.STATUS_DOWNLOADING:
+        if current_status == STATUS_DOWNLOADING:
             self._show_downloading_progress(data)
             playlist_index = data.get("playlist_index")
             playlist_count = data.get("playlist_count")
@@ -307,40 +374,53 @@ class App(ttk.Window):
                         text=f"Video {playlist_index} / {playlist_count}"
                     )
                 else:
-                    self.playlist_label.configure(
-                        text=f"Video {playlist_index}"
-                    )
-        elif current_status == Downloader.STATUS_PROCESSING:
+                    self.playlist_label.configure(text=f"Video {playlist_index}")
+        elif current_status == STATUS_PROCESSING:
             self.progress_bar["value"] = 100
-            self.progress_label.configure(text="Processing...")
-        elif current_status == Downloader.STATUS_COMPLETED:
+            self.progress_label.configure(text="Processing...", bootstyle="secondary")
+        elif current_status == STATUS_COMPLETED:
             self.progress_bar["value"] = 100
-            self.progress_label.configure(
-                text="Download complete!",
-                bootstyle="success",
-            )
-            self.playlist_label.configure(text="")
-            self._set_buttons_for_state(is_idle=True)
-            self._cancel_polling()
-        elif current_status == Downloader.STATUS_CANCELLED:
+            error_messages = data.get("errors") or []
+            if error_messages:
+                self._finish_run(
+                    f"Finished with {len(error_messages)} error(s)", "warning"
+                )
+                self.after(
+                    50,
+                    lambda messages=list(error_messages): self._show_error_summary(
+                        messages
+                    ),
+                )
+            else:
+                self._finish_run("Download complete!", "success")
+        elif current_status == STATUS_CANCELLED:
             self.progress_bar["value"] = 0
-            self.progress_label.configure(text="Cancelled.")
-            self.playlist_label.configure(text="")
-            self._set_buttons_for_state(is_idle=True)
-            self._cancel_polling()
-        elif current_status == Downloader.STATUS_ERROR:
+            self._finish_run("Cancelled.", "secondary")
+        elif current_status == STATUS_ERROR:
             self.progress_bar["value"] = 0
-            self.progress_label.configure(text="Error occurred.")
-            self.playlist_label.configure(text="")
-            self._set_buttons_for_state(is_idle=True)
-            self._cancel_polling()
+            self._finish_run("Error occurred.", "danger")
             error_message = data.get("error", "Unknown error")
             self.after(
                 50,
-                lambda msg=error_message: messagebox.showerror(
-                    "Download Error", msg
-                ),
+                lambda msg=error_message: messagebox.showerror("Download Error", msg),
             )
+
+    def _finish_run(self, label_text, bootstyle):
+        """Reset the UI to idle once a download run has ended."""
+        self._polling_active = False
+        self.progress_label.configure(text=label_text, bootstyle=bootstyle)
+        self.playlist_label.configure(text="")
+        self._set_buttons_for_state(is_idle=True)
+        self._cancel_polling()
+
+    def _show_error_summary(self, error_messages):
+        """Show the collected yt-dlp errors, truncated for readability."""
+        visible_messages = error_messages[:MAX_ERRORS_IN_DIALOG]
+        summary = "\n".join(visible_messages)
+        remaining_count = len(error_messages) - len(visible_messages)
+        if remaining_count > 0:
+            summary = f"{summary}\n... and {remaining_count} more"
+        messagebox.showwarning("Download Finished with Errors", summary)
 
     def _show_downloading_progress(self, data):
         percent_done = data.get("percent", 0)
@@ -365,14 +445,25 @@ class App(ttk.Window):
             self.start_button.configure(state="disabled")
             self.stop_button.configure(state="normal")
 
+    def _save_settings(self):
+        """Persist the current folder and MP3 choice for the next launch."""
+        self.settings = {
+            "output_directory": self.output_folder_entry.get().strip(),
+            "convert_to_mp3": bool(self.convert_to_mp3.get()),
+        }
+        save_settings(self.settings)
+
     def _cancel_polling(self):
         if self._poll_callback_id is not None:
             self.after_cancel(self._poll_callback_id)
             self._poll_callback_id = None
 
     def destroy(self):
+        self._polling_active = False
         self._cancel_polling()
+        self._cancel_validation_hide()
         self.downloader.cancel()
+        self._save_settings()
         super().destroy()
 
     @staticmethod

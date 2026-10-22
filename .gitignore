@@ -9,6 +9,8 @@ dist/
 .venv/
 venv/
 .env
+.pytest_cache/
+.ruff_cache/
 bin/ffmpeg.exe
 bin/ffprobe.exe
 bin/*.zip

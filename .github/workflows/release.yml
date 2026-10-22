@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - run: pip install --upgrade -r requirements-dev.txt
+      - run: ruff check src tests setup_ffmpeg.py
+      - run: ruff format --check src tests setup_ffmpeg.py
+      - run: pytest
+
+      - name: Verify tag matches application version
+        shell: pwsh
+        run: |
+          $appVersion = python -c "import sys; sys.path.insert(0, 'src'); from version import APP_VERSION; print(APP_VERSION)"
+          if ("v$appVersion" -ne $env:GITHUB_REF_NAME) {
+            throw "Tag $env:GITHUB_REF_NAME does not match APP_VERSION '$appVersion' (expected v$appVersion)"
+          }
+
+      - run: python setup_ffmpeg.py
+      - run: python -m PyInstaller build.spec
+
+      - name: Record bundled engine versions
+        id: versions
+        shell: pwsh
+        run: |
+          $pythonVersion = python -c "import platform; print(platform.python_version())"
+          $ytdlpVersion = python -c "import yt_dlp; print(yt_dlp.version.__version__)"
+          $ffmpegFirstLine = (& "bin\ffmpeg.exe" -version | Select-Object -First 1)
+          if ($ffmpegFirstLine -match '^ffmpeg version (\d+(\.\d+)*)') {
+            $ffmpegVersion = $Matches[1]
+          } else {
+            $ffmpegVersion = "unknown"
+          }
+          "python=$pythonVersion" >> $env:GITHUB_OUTPUT
+          "ytdlp=$ytdlpVersion" >> $env:GITHUB_OUTPUT
+          "ffmpeg=$ffmpegVersion" >> $env:GITHUB_OUTPUT
+          Write-Output "Bundling Python $pythonVersion, yt-dlp $ytdlpVersion and FFmpeg $ffmpegVersion"
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          gh release view $tag --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title $tag --generate-notes
+            if ($LASTEXITCODE -ne 0) { throw "Failed to create release $tag" }
+          }
+
+          # Prepend the engine versions to the (auto-generated) notes, replacing
+          # the block on re-runs instead of duplicating it.
+          $notesPath = Join-Path $env:RUNNER_TEMP "release-notes.md"
+          gh release view $tag --json body --jq '.body' | Out-File -FilePath $notesPath -Encoding utf8
+          $existingNotes = (Get-Content -Raw -Path $notesPath).Trim()
+          $existingNotes = [regex]::Replace(
+            $existingNotes,
+            '(?s)<!-- bundled-versions -->.*?<!-- /bundled-versions -->',
+            ''
+          ).Trim()
+
+          $versionBlock = @(
+            '<!-- bundled-versions -->',
+            '### Bundled runtime and engine',
+            '',
+            "- Python ${{ steps.versions.outputs.python }}",
+            "- yt-dlp ${{ steps.versions.outputs.ytdlp }}",
+            "- FFmpeg ${{ steps.versions.outputs.ffmpeg }}",
+            '<!-- /bundled-versions -->'
+          ) -join "`n"
+
+          if ($existingNotes) {
+            $notes = "$versionBlock`n`n$existingNotes"
+          } else {
+            $notes = $versionBlock
+          }
+          Set-Content -Path $notesPath -Value $notes -Encoding utf8
+
+          gh release edit $tag --notes-file $notesPath
+          gh release upload $tag "dist/Mitch-yt-dlp.exe" --clobber

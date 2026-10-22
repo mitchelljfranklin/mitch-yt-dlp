@@ -33,6 +33,8 @@
 - **MP3 conversion** — toggle to extract audio as MP3 (FFmpeg bundled)
 - **Real-time progress** — speed, ETA, and percentage while downloading
 - **Stop & Exit** — cancel downloads with Stop, close the app with Exit
+- **Clear failure reporting** — playlists keep going, then list what failed
+- **Remembers your settings** — last output folder and MP3 choice are restored
 - **Keyboard shortcuts** — Enter to start, Escape to stop
 - **Standalone `.exe`** — no Python installation needed, everything bundled
 
@@ -50,6 +52,7 @@ cd mitch-yt-dlp
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+python setup_ffmpeg.py   # optional: enables MP3 conversion
 python src/main.py
 ```
 
@@ -59,11 +62,12 @@ python src/main.py
 # Install dependencies
 pip install -r requirements.txt
 
-# Download FFmpeg Windows binaries (required for MP3 conversion)
+# Download FFmpeg Windows binaries (required for MP3 conversion
+# and enforced by build.spec)
 python setup_ffmpeg.py
 
 # Build standalone EXE
-pyinstaller build.spec or python -m PyInstaller build.spec
+python -m PyInstaller build.spec
 # Output: dist\Mitch-yt-dlp.exe
 ```
 
@@ -83,13 +87,15 @@ Mitch-yt-dlp imports [yt-dlp](https://github.com/yt-dlp/yt-dlp) as a Python libr
 ## Requirements
 
 - **Windows 10/11** (64-bit)
-- **For source installs**: Python 3.11+
+- **For source installs**: Python 3.14+, plus FFmpeg in `bin/` (via `setup_ffmpeg.py`) or on `PATH` for MP3 conversion.
 
-  No other dependencies — yt-dlp and FFmpeg are bundled into the EXE.
+  The released EXE bundles Python, yt-dlp, and FFmpeg — no other dependencies.
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, requesting features, and submitting PRs.
+
+While I believe AI can be a powerful tool for development—and I personally use 'Mitch-AI' to help manage documentation and reviews—it must remain a tool in the hands of a capable developer. In this project, you are the pilot; you are responsible for coding, confirming, and refining your contributions. To help those using AI tools, I've created an AGENTS.md file specifically for your assistants to follow. Please ensure your agent adheres to these guidelines, as non-compliant code will be rejected regardless of how well it functions. Most importantly, please ensure you fully understand the code you are submitting; a 'black box' approach where AI generates code that the human contributor doesn't understand is not permitted here.
 
 ## Privacy & Security
 

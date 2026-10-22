@@ -1,0 +1,21 @@
+[tool.ruff]
+# Minimum Python supported by the app (see README requirements).
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+# Explicit selection: ruff's defaults have changed between releases, which
+# previously broke CI without any source change. Keep this list intentional.
+select = [
+    "E4", # import errors
+    "E7", # statements
+    "E9", # runtime errors
+    "F",  # pyflakes
+    "I",  # import sorting
+    "B",  # bugbear
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"

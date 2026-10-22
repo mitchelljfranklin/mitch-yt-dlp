@@ -5,7 +5,7 @@ PyInstaller spec file for Mitch-yt-dlp.
 Builds a single-window (no console) .exe that bundles:
 - The ttkbootstrap GUI
 - yt-dlp and all its extractors / downloaders / post-processors
-- ffmpeg.exe + ffprobe.exe (if present in bin/)
+- ffmpeg.exe + ffprobe.exe (required; run setup_ffmpeg.py first)
 
 Usage:
     pyinstaller build.spec
@@ -18,7 +18,7 @@ import os
 from PyInstaller.utils.hooks import collect_submodules
 
 # ---------------------------------------------------------------------------
-# Collect FFmpeg binaries for bundling (optional, for MP3 conversion)
+# Collect FFmpeg binaries for bundling (required for MP3 conversion)
 # ---------------------------------------------------------------------------
 
 bundled_binaries = []
@@ -27,10 +27,22 @@ bundled_data_files = []
 path_to_ffmpeg = os.path.join("bin", "ffmpeg.exe")
 path_to_ffprobe = os.path.join("bin", "ffprobe.exe")
 
-if os.path.exists(path_to_ffmpeg):
-    bundled_binaries.append((path_to_ffmpeg, "bin"))
-if os.path.exists(path_to_ffprobe):
-    bundled_binaries.append((path_to_ffprobe, "bin"))
+# Fail loudly instead of shipping an EXE whose "Convert to MP3" toggle is
+# broken. CI (and releases) always run setup_ffmpeg.py first.
+missing_binaries = [
+    binary_path
+    for binary_path in (path_to_ffmpeg, path_to_ffprobe)
+    if not os.path.exists(binary_path)
+]
+if missing_binaries:
+    raise SystemExit(
+        "Missing FFmpeg binaries: "
+        + ", ".join(missing_binaries)
+        + "\nRun 'python setup_ffmpeg.py' before building."
+    )
+
+bundled_binaries.append((path_to_ffmpeg, "bin"))
+bundled_binaries.append((path_to_ffprobe, "bin"))
 
 # ---------------------------------------------------------------------------
 # Application icon (bundled for window icon at runtime)
@@ -87,7 +99,9 @@ executable = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    # UPX-compressed executables are a common source of antivirus false
+    # positives; the size saving is not worth the support burden.
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,  # GUI app, no console window
