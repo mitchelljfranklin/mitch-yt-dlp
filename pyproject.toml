@@ -17,5 +17,7 @@ select = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+# "." keeps the repo root importable when pytest is launched as a console
+# script (CI), which does not add the CWD to sys.path like `python -m pytest` does.
+pythonpath = [".", "src"]
 addopts = "-ra"

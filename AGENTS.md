@@ -44,7 +44,7 @@ python -m PyInstaller build.spec      # -> dist\Mitch-yt-dlp.exe
 
 - Tests never create a Tk window and never hit the network. Downloader tests monkeypatch `downloader.yt_dlp.YoutubeDL` with a fake context manager and read statuses from the session queue.
 - `test_app_helpers.py` imports `App` only for its pure `_format_speed` / `_format_eta` statics.
-- `pyproject.toml` sets `pythonpath = ["src"]`, so test imports work without installing a package.
+- `pyproject.toml` sets `pythonpath = [".", "src"]`, so test imports work without installing a package both under `python -m pytest` and the bare CI `pytest` entry point.
 
 ## Conventions (see CONTRIBUTING.md)
 
