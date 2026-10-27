@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: these jobs only read the repo. release.yml separately needs
+# contents: write to publish the release and asset.
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: windows-latest
