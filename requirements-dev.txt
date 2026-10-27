@@ -1,5 +1,5 @@
 -r requirements.txt
 
 # Pinned so lint results do not change underneath an unchanged codebase.
-ruff==0.17.1
+ruff==0.17.2
 pytest==9.1.1
