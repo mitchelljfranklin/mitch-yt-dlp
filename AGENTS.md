@@ -15,6 +15,7 @@ python -m PyInstaller build.spec      # -> dist\Mitch-yt-dlp.exe
 ```
 
 - CI (`.github/workflows/build.yml`) runs lint → test → build on `windows-latest` / Python 3.14; local development uses the same 3.14 line.
+- Every `uses:` is pinned to a full commit SHA with a trailing `# vX.Y.Z` comment, and the repo enables **Require SHA pinning** for Actions. Using a tag or branch ref (`actions/checkout@v7`) makes the workflow fail to start; bump pins via Dependabot's `github-actions` PRs, which preserve the comment format.
 - `build.spec` resolves `src/main.py`, `bin/`, and `icon.ico` relative to the **CWD** and now **fails loudly** when `bin/ffmpeg.exe`/`ffprobe.exe` is missing, so always run `setup_ffmpeg.py` and build from the repo root. Intermediates go to `build/build/` (named after the spec).
 - `bin/*.exe`, `build/`, `dist/`, and all `*.exe` are gitignored; a populated `bin/` is a local prerequisite.
 - Lint config is explicit in `pyproject.toml` and ruff is pinned. Ruff's defaults have changed between releases and once broke CI without a code change — change the rule list deliberately.
