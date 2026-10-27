@@ -99,7 +99,14 @@ Releases are built by `.github/workflows/release.yml` when a `v*` tag is pushed:
 The workflow refuses to publish if the tag and `APP_VERSION` disagree, then
 attaches `dist/Mitch-yt-dlp.exe` to the GitHub release. CI installs with
 `pip install --upgrade`, so each release bundles the newest stable yt-dlp from
-PyPI; the release notes record the resolved yt-dlp and FFmpeg versions.
+PyPI; the release notes record the resolved Python, yt-dlp, and FFmpeg versions.
+
+Published tags are immutable. The `Protect release tags` ruleset rejects moving
+or deleting anything matching `v*`, and the `Protect main` ruleset rejects
+force-pushes to and deletion of the default branch. If you tag the wrong commit,
+delete the tag first — that also fails, so disable the ruleset temporarily in
+**Settings → Rules → Rulesets**, fix the tag, and re-enable it. Avoid the
+situation by checking out the intended commit before tagging.
 
 ## Questions?
 

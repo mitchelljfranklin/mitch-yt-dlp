@@ -51,3 +51,4 @@ python -m PyInstaller build.spec      # -> dist\Mitch-yt-dlp.exe
 - Docstring every function and class; no single-letter names (`error`, not `e`); module-level constants instead of magic numbers.
 - Keep UI logic in `app.py`, download logic in `downloader.py`, preferences in `settings.py`.
 - Releases: bump `APP_VERSION`, push a matching `v*` tag; `.github/workflows/release.yml` re-runs checks, installs yt-dlp with `--upgrade` (newest stable PyPI release), builds on Python 3.14, stamps the bundled Python/yt-dlp/FFmpeg versions into the release notes, and attaches the EXE to the GitHub release.
+- Repo rulesets block force-pushing/deleting `main` and moving/deleting `v*` tags. Never plan a release around rewriting history or re-tagging; if a tag is wrong, disable the ruleset in **Settings → Rules → Rulesets**, fix it, and re-enable.
