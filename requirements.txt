@@ -1,4 +1,4 @@
-ttkbootstrap>=2.2,<3
+ttkbootstrap>=2.2.3,<3
 # Intentionally unpinned: release builds resolve the newest stable yt-dlp
 # so the bundled extractors stay current. CI installs with --upgrade.
 yt-dlp>=2024.0
