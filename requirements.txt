@@ -1,5 +1,5 @@
 ttkbootstrap>=2.2,<3
 # Intentionally unpinned: release builds resolve the newest stable yt-dlp
 # so the bundled extractors stay current. CI installs with --upgrade.
-yt-dlp>=2024.0
+yt-dlp>=2026.10.21
 pyinstaller>=6.22,<7
