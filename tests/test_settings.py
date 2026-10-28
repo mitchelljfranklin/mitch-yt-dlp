@@ -12,7 +12,11 @@ def test_missing_file_returns_defaults(tmp_path):
 
 def test_roundtrip(tmp_path):
     settings_path = tmp_path / "nested" / "settings.json"
-    settings = {"output_directory": r"C:\Downloads", "convert_to_mp3": True}
+    settings = {
+        "output_directory": r"C:\Downloads",
+        "convert_to_mp3": True,
+        "video_only": True,
+    }
 
     assert save_settings(settings, settings_path) is True
     assert load_settings(settings_path) == settings
@@ -61,7 +65,22 @@ def test_unknown_keys_are_dropped(tmp_path):
     assert loaded_settings == {
         "output_directory": r"D:\Media",
         "convert_to_mp3": True,
+        "video_only": False,
     }
+
+
+def test_settings_saved_before_video_only_still_load(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text(
+        json.dumps({"output_directory": r"D:\Media", "convert_to_mp3": True}),
+        encoding="utf-8",
+    )
+
+    loaded_settings = load_settings(settings_path)
+
+    assert loaded_settings["output_directory"] == r"D:\Media"
+    assert loaded_settings["convert_to_mp3"] is True
+    assert loaded_settings["video_only"] is False
 
 
 def test_save_leaves_no_temporary_file(tmp_path):

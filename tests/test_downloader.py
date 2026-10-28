@@ -119,6 +119,32 @@ def test_clean_error_message_strips_colour_and_prefix():
     assert message == "Video unavailable"
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.youtube.com/playlist?list=PL123",
+        "https://www.youtube.com/playlist?list=PL123&index=4",
+        "https://example.com/gallery?playlist_id=42",
+    ],
+)
+def test_is_bare_playlist_url_detects_playlists_without_a_video(url):
+    assert downloader.is_bare_playlist_url(url) is True
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.youtube.com/watch?v=abc123&list=PL123",
+        "https://youtu.be/abc123?list=PL123",
+        "https://www.youtube.com/watch?v=abc123",
+        "https://example.com/video",
+        "https://soundcloud.com/artist/sets/album",
+    ],
+)
+def test_is_bare_playlist_url_ignores_videos_and_unknown_urls(url):
+    assert downloader.is_bare_playlist_url(url) is False
+
+
 def test_download_reports_progress_and_completion(tmp_path, monkeypatch):
     fake_youtube_dl, holder = make_fake_youtube_dl(
         [
@@ -259,6 +285,44 @@ def test_build_options_keeps_full_video_by_default(monkeypatch, tmp_path):
     assert "format" not in options
     assert "postprocessors" not in options
     assert "ffmpeg_location" not in options
+
+
+def test_build_options_expands_playlists_by_default(monkeypatch, tmp_path):
+    monkeypatch.setattr(downloader, "find_ffmpeg_location", lambda: None)
+    session = downloader.DownloadSession()
+
+    options = downloader.Downloader()._build_options(
+        session, str(tmp_path), convert_to_mp3=False, video_only=False
+    )
+
+    assert options["noplaylist"] is False
+
+
+def test_build_options_ignores_playlist_for_video_only(monkeypatch, tmp_path):
+    monkeypatch.setattr(downloader, "find_ffmpeg_location", lambda: None)
+    session = downloader.DownloadSession()
+
+    options = downloader.Downloader()._build_options(
+        session, str(tmp_path), convert_to_mp3=False, video_only=True
+    )
+
+    assert options["noplaylist"] is True
+
+
+def test_download_passes_video_only_to_yt_dlp(tmp_path, monkeypatch):
+    fake_youtube_dl, holder = make_fake_youtube_dl()
+    monkeypatch.setattr(downloader.yt_dlp, "YoutubeDL", fake_youtube_dl)
+    instance = downloader.Downloader()
+
+    instance.download(
+        "https://www.youtube.com/watch?v=abc123&list=PL123",
+        str(tmp_path),
+        video_only=True,
+    )
+
+    wait_for_status(instance.progress_queue, downloader.STATUS_COMPLETED)
+
+    assert holder["options"]["noplaylist"] is True
 
 
 def test_find_ffmpeg_location_requires_both_binaries(tmp_path, monkeypatch):

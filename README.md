@@ -30,11 +30,12 @@
 
 - **Simple, clean interface** — paste a URL, pick a folder, hit Start
 - **Playlist support** — download entire playlists with one click, with live video counter
+- **Video-only mode** — toggle to grab just the video from a playlist link instead of every entry
 - **MP3 conversion** — toggle to extract audio as MP3 (FFmpeg bundled)
 - **Real-time progress** — speed, ETA, and percentage while downloading
 - **Stop & Exit** — cancel downloads with Stop, close the app with Exit
 - **Clear failure reporting** — playlists keep going, then list what failed
-- **Remembers your settings** — last output folder and MP3 choice are restored
+- **Remembers your settings** — output folder and toggle choices are restored
 - **Keyboard shortcuts** — Enter to start, Escape to stop
 - **Standalone `.exe`** — no Python installation needed, everything bundled
 

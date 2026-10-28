@@ -15,6 +15,7 @@ import re
 import shutil
 import sys
 import threading
+from urllib.parse import parse_qs, urlparse
 
 import yt_dlp
 
@@ -36,6 +37,14 @@ COMPLETE_PERCENT = 100
 
 ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 ERROR_MESSAGE_PREFIX = "ERROR:"
+
+# Query parameters that mark a URL as referring to a playlist, and the ones
+# that carry the single video to prefer when both are present.
+PLAYLIST_QUERY_PARAMETERS = ("list", "playlist", "playlist_id")
+VIDEO_QUERY_PARAMETERS = ("v",)
+# Hosts that put the video id in the path, so a ``list`` parameter alone does
+# not mean the link is a playlist.
+VIDEO_PATH_HOSTS = ("youtu.be", "www.youtu.be")
 
 
 # ---------------------------------------------------------------------------
@@ -82,6 +91,32 @@ def clean_error_message(message):
     if cleaned_message.startswith(ERROR_MESSAGE_PREFIX):
         cleaned_message = cleaned_message[len(ERROR_MESSAGE_PREFIX) :].strip()
     return cleaned_message
+
+
+def is_bare_playlist_url(url):
+    """
+    Return ``True`` when *url* points at a playlist without a chosen video.
+
+    yt-dlp's ``noplaylist`` option only picks the single video when the URL
+    carries both a video and a playlist (``watch?v=…&list=…``).  A playlist
+    link with no video in it cannot honour "video only", so the UI warns
+    instead of silently downloading every entry.  The check is deliberately
+    conservative: anything it does not recognise is left to yt-dlp.
+    """
+    parsed_url = urlparse(url)
+    query_parameters = parse_qs(parsed_url.query)
+
+    if not any(name in query_parameters for name in PLAYLIST_QUERY_PARAMETERS):
+        return False
+    if any(name in query_parameters for name in VIDEO_QUERY_PARAMETERS):
+        return False
+    if (
+        parsed_url.netloc.lower() in VIDEO_PATH_HOSTS
+        and parsed_url.path.strip("/") != ""
+    ):
+        return False
+
+    return True
 
 
 def build_progress_message(progress_data):
@@ -195,12 +230,14 @@ class Downloader:
 
     # -- Public API ---------------------------------------------------------
 
-    def download(self, url, output_directory, convert_to_mp3=False):
+    def download(self, url, output_directory, convert_to_mp3=False, video_only=False):
         """
         Start downloading *url* into *output_directory* on a background thread.
 
         If *convert_to_mp3* is ``True``, the downloaded media will be
-        post-processed into an MP3 audio file (requires FFmpeg).
+        post-processed into an MP3 audio file (requires FFmpeg).  If
+        *video_only* is ``True``, a URL that points at both a video and a
+        playlist downloads just that video.
         """
         session = DownloadSession()
         self._active_session = session
@@ -208,7 +245,7 @@ class Downloader:
 
         self._download_thread = threading.Thread(
             target=self._download_task,
-            args=(session, url, output_directory, convert_to_mp3),
+            args=(session, url, output_directory, convert_to_mp3, video_only),
             daemon=True,
         )
         self._download_thread.start()
@@ -225,10 +262,14 @@ class Downloader:
 
     # -- Internals ----------------------------------------------------------
 
-    def _download_task(self, session, url, output_directory, convert_to_mp3):
+    def _download_task(
+        self, session, url, output_directory, convert_to_mp3, video_only
+    ):
         """Run one download to completion, reporting the final status."""
         try:
-            options = self._build_options(session, output_directory, convert_to_mp3)
+            options = self._build_options(
+                session, output_directory, convert_to_mp3, video_only
+            )
             with yt_dlp.YoutubeDL(options) as youtube_downloader:
                 return_code = youtube_downloader.download([url])
 
@@ -251,7 +292,9 @@ class Downloader:
             error_message = str(error) or type(error).__name__
             session.progress_queue.put({"status": STATUS_ERROR, "error": error_message})
 
-    def _build_options(self, session, output_directory, convert_to_mp3):
+    def _build_options(
+        self, session, output_directory, convert_to_mp3, video_only=False
+    ):
         """Return the yt-dlp options dict for one download run."""
         options = {
             "outtmpl": os.path.join(output_directory, "%(title)s.%(ext)s"),
@@ -260,7 +303,9 @@ class Downloader:
             "quiet": True,
             "no_warnings": True,
             "ignoreerrors": True,
-            "noplaylist": False,
+            # Only meaningful when the URL names both a video and a playlist;
+            # a playlist-only URL still expands to every entry.
+            "noplaylist": video_only,
             "extract_flat": False,
         }
 

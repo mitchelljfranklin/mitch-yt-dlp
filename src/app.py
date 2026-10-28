@@ -22,6 +22,7 @@ from downloader import (
     STATUS_PROCESSING,
     YT_DLP_VERSION,
     Downloader,
+    is_bare_playlist_url,
     is_ffmpeg_available,
 )
 from settings import load_settings, save_settings
@@ -40,6 +41,7 @@ class App(ttk.Window):
 
         self.settings = load_settings()
         self.convert_to_mp3 = tk.BooleanVar(value=self.settings["convert_to_mp3"])
+        self.video_only = tk.BooleanVar(value=self.settings["video_only"])
 
         self.title(f"Mitch-yt-dlp {APP_VERSION}")
         self.geometry("640x366")
@@ -160,7 +162,7 @@ class App(ttk.Window):
 
         self._build_url_input(form_frame, row=5)
 
-        self._build_mp3_toggle(form_frame, row=6)
+        self._build_option_toggles(form_frame, row=6)
 
     def _build_output_folder_row(self, parent, row):
         folder_row = ttk.Frame(parent)
@@ -185,17 +187,39 @@ class App(ttk.Window):
         self.url_entry = ttk.Entry(parent)
         self.url_entry.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(0, 4))
 
-    def _build_mp3_toggle(self, parent, row):
-        mp3_row = ttk.Frame(parent)
-        mp3_row.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        mp3_row.grid_columnconfigure(0, weight=1)
+    def _build_option_toggles(self, parent, row):
+        """Build the video-only and MP3 toggles side by side."""
+        toggle_row = ttk.Frame(parent)
+        toggle_row.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(6, 0))
+        toggle_row.grid_columnconfigure(0, weight=1)
+        toggle_row.grid_columnconfigure(1, weight=0)
 
-        toggle_container = ttk.Frame(mp3_row)
-        toggle_container.grid(row=0, column=0, sticky="e", padx=(0, 8))
-        toggle_container.grid_columnconfigure(0, weight=1)
+        video_only_container = ttk.Frame(toggle_row)
+        video_only_container.grid(row=0, column=0, sticky="w")
+        video_only_container.grid_columnconfigure(0, weight=1)
+
+        self.video_only_switch = ttk.Checkbutton(
+            video_only_container,
+            text="Video only (ignore playlist)",
+            bootstyle="primary-round-toggle",
+            variable=self.video_only,
+        )
+        self.video_only_switch.grid(row=0, column=0, sticky="w")
+
+        video_only_hint = ttk.Label(
+            video_only_container,
+            text="Skips the rest of the playlist",
+            font=("", 9),
+            bootstyle="secondary",
+        )
+        video_only_hint.grid(row=1, column=0, sticky="w")
+
+        mp3_container = ttk.Frame(toggle_row)
+        mp3_container.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        mp3_container.grid_columnconfigure(0, weight=1)
 
         self.mp3_switch = ttk.Checkbutton(
-            toggle_container,
+            mp3_container,
             text="Convert to MP3",
             bootstyle="primary-round-toggle",
             variable=self.convert_to_mp3,
@@ -203,7 +227,7 @@ class App(ttk.Window):
         self.mp3_switch.grid(row=0, column=0, sticky="e")
 
         mp3_hint = ttk.Label(
-            toggle_container,
+            mp3_container,
             text="Extracts audio with FFmpeg",
             font=("", 9),
             bootstyle="secondary",
@@ -310,6 +334,14 @@ class App(ttk.Window):
             )
             return
 
+        should_use_video_only = bool(self.video_only.get())
+        if should_use_video_only and is_bare_playlist_url(video_url):
+            self._show_validation_error(
+                "That link is a whole playlist. Open the video you want and copy its link."
+            )
+            self.url_entry.focus_set()
+            return
+
         self._save_settings()
         self._set_buttons_for_state(is_idle=False)
         self.progress_bar["value"] = 0
@@ -319,7 +351,9 @@ class App(ttk.Window):
         )
         self._hide_validation()
 
-        self.downloader.download(video_url, output_directory, should_convert_to_mp3)
+        self.downloader.download(
+            video_url, output_directory, should_convert_to_mp3, should_use_video_only
+        )
         self._polling_active = True
         self._poll_progress_queue()
 
@@ -446,10 +480,11 @@ class App(ttk.Window):
             self.stop_button.configure(state="normal")
 
     def _save_settings(self):
-        """Persist the current folder and MP3 choice for the next launch."""
+        """Persist the current folder and toggle choices for the next launch."""
         self.settings = {
             "output_directory": self.output_folder_entry.get().strip(),
             "convert_to_mp3": bool(self.convert_to_mp3.get()),
+            "video_only": bool(self.video_only.get()),
         }
         save_settings(self.settings)
 

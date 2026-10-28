@@ -2,7 +2,7 @@
 Application preferences persistence.
 
 Settings live in ``%APPDATA%\\Mitch-yt-dlp\\settings.json`` so the chosen
-output folder and MP3 toggle survive restarts.  Loading is deliberately
+output folder and toggles survive restarts.  Loading is deliberately
 forgiving: a missing, unreadable, or malformed file falls back to defaults.
 """
 
@@ -15,6 +15,7 @@ SETTINGS_FILE_NAME = "settings.json"
 DEFAULT_SETTINGS = {
     "output_directory": "",
     "convert_to_mp3": False,
+    "video_only": False,
 }
 
 
